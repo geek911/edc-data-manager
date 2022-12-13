@@ -6,6 +6,7 @@ from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import models
+from django.urls import reverse
 from django.forms.models import model_to_dict
 from django_crypto_fields.fields import EncryptedTextField
 from edc_base.model_mixins.base_uuid_model import BaseUuidModel
@@ -16,8 +17,6 @@ from edc_search.model_mixins import SearchSlugManager
 from edc_search.model_mixins import SearchSlugModelMixin as Base
 
 from .choices import SUBJECT_TYPES
-
-app_config = django_apps.get_app_config('edc_data_manager')
 
 STATUS = (
     (OPEN, 'Open'),
@@ -150,7 +149,7 @@ class DataActionItem(
                 self.issue_number = last_item_number + 1
             else:
                 self.issue_number = 1
-        if app_config.child_subject:
+        if settings.APP_NAME == 'tshilo_dikotla':
             identifier_type = self.subject_identifier.split('-')
             if len(identifier_type) == 4:
                 self.subject_type = 'infant'
@@ -162,12 +161,29 @@ class DataActionItem(
 
     @property
     def dashboard_url(self):
-        app_config = django_apps.get_app_config('edc_data_manager')
-        if self.subject_type == 'infant':
-            return settings.DASHBOARD_URL_NAMES.get(
-                app_config.infant_dashboard_url)
-        return settings.DASHBOARD_URL_NAMES.get(
-            app_config.subject_dashboard_url)
+        """
+        To generate dashboard url
+        """
+        
+        # href to remain # to avoid redirecting if url is not generated
+        generated_url = '#'
+        
+        if self.subject_identifier:
+            """
+            Subject Dashboard does not exist, without a pid
+            """
+            if self.subject_type == 'infant':
+                url = settings.DASHBOARD_URL_NAMES.get(
+                    'infant_subject_dashboard_url')
+            else:
+                url = settings.DASHBOARD_URL_NAMES.get(
+                    'subject_dashboard_url')
+            
+            # generate url for the dashboard otherise #
+            generated_url = reverse(url, args=[self.subject_identifier,])
+        
+        return generated_url
+    
 
     @property
     def assign_users(self):
